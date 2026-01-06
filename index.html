@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruleta Películas Infinita</title>
+    <title>Ruleta Pro: Eliminación Directa</title>
     <style>
         :root {
             --red: #e50914;
             --bg: #141414;
-            --w: 200px; /* Ancho póster */
-            --h: 300px; /* Alto póster */
+            --w: 200px;
+            --h: 300px;
             --gap: 15px;
         }
 
         body {
             background: var(--bg);
             color: white;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Arial Black', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -29,7 +29,7 @@
         .viewport {
             position: relative;
             width: 100%;
-            height: 420px;
+            height: 450px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -42,20 +42,19 @@
             position: absolute;
             width: calc(var(--w) + 10px);
             height: calc(var(--h) + 10px);
-            border: 5px solid white;
+            border: 6px solid white;
             border-radius: 10px;
             z-index: 100;
             pointer-events: none;
-            box-shadow: 0 0 30px rgba(255,255,255,0.3);
+            box-shadow: 0 0 40px rgba(255,255,255,0.5);
         }
 
         .rail {
             display: flex;
             gap: var(--gap);
             position: absolute;
-            will-change: transform;
-            /* El centro del riel debe estar alineado con el centro del viewport */
             left: 50%;
+            will-change: transform;
         }
 
         .poster {
@@ -63,121 +62,161 @@
             height: var(--h);
             object-fit: cover;
             border-radius: 6px;
-            filter: brightness(0.3);
-            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.5s;
+            filter: brightness(0.4);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Estilo para películas ya usadas */
+        .poster.blocked {
+            filter: grayscale(1) brightness(0.2) !important;
+            opacity: 0.5;
         }
 
         .poster.winner {
-            filter: brightness(1.2);
-            transform: scale(1.15);
-            box-shadow: 0 0 40px var(--red);
-            border: 3px solid var(--red);
+            filter: brightness(1.3) !important;
+            transform: scale(1.2);
+            box-shadow: 0 0 50px var(--red);
+            border: 4px solid var(--red);
             z-index: 10;
         }
 
         .btn {
             margin-top: 20px;
-            padding: 16px 50px;
+            padding: 20px 60px;
             background: var(--red);
             color: white;
             border: none;
-            border-radius: 4px;
-            font-size: 1.2rem;
-            font-weight: bold;
+            border-radius: 50px;
+            font-size: 1.5rem;
             cursor: pointer;
             text-transform: uppercase;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
-        .btn:disabled { background: #444; cursor: not-allowed; }
+        .btn:disabled { background: #333; cursor: not-allowed; box-shadow: none; }
+
+        #reset-link {
+            margin-top: 15px;
+            color: #666;
+            text-decoration: underline;
+            cursor: pointer;
+            font-family: sans-serif;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
 
-    <h1 id="status">¡A actuar!</h1>
+    <h1 id="status">¡TIRA LA RULETA!</h1>
+    <p id="sub-status" style="color: #aaa; margin-bottom: 10px;"></p>
 
     <div class="viewport">
         <div class="selector"></div>
         <div id="rail" class="rail"></div>
     </div>
 
-    <button id="btn" class="btn" onclick="spin()">Girar Ruleta</button>
+    <button id="btn" class="btn" onclick="spin()">¡GIRAR AHORA!</button>
+    <div id="reset-link" onclick="resetGame()" style="display:none">Reiniciar juego</div>
 
     <script>
-        const movies = [
-            { name: "Titanic", img: "3.jpg" },
-            { name: "Shrek", img: "2.jpg" },
-            { name: "Star Wars", img: "4.jpg" },
-            { name: "Stranger Things", img: "1.jpg" },
-
+        const initialMovies = [
+            { id: 0, name: "Titanic", img: "3.jpg" },
+            { id: 1, name: "Shrek", img: "2.jpg" },
+            { id: 2, name: "Star Wars", img: "4.jpg" },
+            { id: 3, name: "Stranger Things", img: "1.jpg" },
+            { id: 4, name: "Avatar", img: "avatar.jpg" },
+            { id: 5, name: "Batman", img: "batman.jpg" },
+            { id: 6, name: "Jurassic Park", img: "jurassic.jpg" },
+            { id: 7, name: "El Rey León", img: "reyleon.jpg" }
         ];
 
+        let blockedIds = []; // Aquí guardamos las que ya salieron
         const rail = document.getElementById('rail');
         const btn = document.getElementById('btn');
         const status = document.getElementById('status');
         
-        const step = 215; // 200 ancho + 15 gap
-        const copies = 12; // Cantidad de juegos de imágenes
+        const step = 215; 
+        const copies = 15; 
 
-        // 1. Construir riel largo
         function init() {
             let content = "";
             for(let i=0; i<copies; i++) {
-                movies.forEach(m => {
-                    content += `<img src="${m.img}" class="poster" data-name="${m.name}" onerror="this.src='https://via.placeholder.com/200x300?text=${m.name}'">`;
+                initialMovies.forEach(m => {
+                    const isBlocked = blockedIds.includes(m.id) ? 'blocked' : '';
+                    content += `<img src="${m.img}" class="poster ${isBlocked}" data-id="${m.id}" data-name="${m.name}" onerror="this.src='https://via.placeholder.com/200x300?text=${m.name}'">`;
                 });
             }
             rail.innerHTML = content;
             resetToCenter();
         }
 
-        // 2. Coloca la ruleta en el medio exacto sin animación
         function resetToCenter() {
             rail.style.transition = "none";
-            // Centramos en el inicio del bloque central de películas
-            const centerIdx = Math.floor(copies / 2) * movies.length;
-            const initialOffset = -(centerIdx * step) - (step / 2);
+            const centerBlockIdx = Math.floor(copies / 2) * initialMovies.length;
+            const initialOffset = -(centerBlockIdx * step) - (step / 2);
             rail.style.transform = `translateX(${initialOffset}px)`;
             return initialOffset;
         }
 
         function spin() {
-            btn.disabled = true;
-            status.innerText = "Girando...";
+            // Filtrar películas disponibles
+            const available = initialMovies.filter(m => !blockedIds.includes(m.id));
             
-            // Limpiar selección anterior
+            if (available.length === 0) {
+                status.innerText = "¡TODAS LAS PELÍCULAS AGOTADAS!";
+                document.getElementById('reset-link').style.display = "block";
+                return;
+            }
+
+            btn.disabled = true;
+            status.innerText = "SORTEANDO...";
+            
             document.querySelectorAll('.poster').forEach(p => p.classList.remove('winner'));
 
-            // Resetear posición al centro antes de girar (imperceptible)
             const currentPos = resetToCenter();
+            rail.offsetHeight; // Force reflow
 
-            // Forzar un reflow para que el navegador note el cambio de posición sin animación
-            rail.offsetHeight; 
-
-            // Elegir ganador
-            const randomIdx = Math.floor(Math.random() * movies.length);
+            // Elegir una peli al azar de las disponibles
+            const randomMovie = available[Math.floor(Math.random() * available.length)];
+            const movieIndexInOriginal = initialMovies.findIndex(m => m.id === randomMovie.id);
             
-            // Queremos que se mueva 3 vueltas completas + la posición de la peli
-            const distance = (movies.length * 3 + randomIdx) * step;
+            // Giro súper rápido: 5 vueltas + posición
+            const distance = (initialMovies.length * 5 + movieIndexInOriginal) * step;
             const finalPos = currentPos - distance;
 
-            // Animación
-            rail.style.transition = "transform 5s cubic-bezier(0.1, 0, 0.1, 1)";
+            // Velocidad aumentada: 3 segundos con curva agresiva
+            rail.style.transition = "transform 3s cubic-bezier(0.15, 0, 0.05, 1)";
             rail.style.transform = `translateX(${finalPos}px)`;
 
             setTimeout(() => {
-                // El ganador está en el índice global: centerIdx + vueltas + randomIdx
-                const centerIdx = Math.floor(copies / 2) * movies.length;
-                const winnerGlobalIdx = centerIdx + (movies.length * 3) + randomIdx;
-                const allPosters = document.querySelectorAll('.poster');
-                const winner = allPosters[winnerGlobalIdx];
+                const centerIdx = Math.floor(copies / 2) * initialMovies.length;
+                const winnerGlobalIdx = centerIdx + (initialMovies.length * 5) + movieIndexInOriginal;
+                const winner = document.querySelectorAll('.poster')[winnerGlobalIdx];
 
                 if(winner) {
                     winner.classList.add('winner');
-                    status.innerText = "¡Te toca: " + winner.dataset.name + "!";
+                    status.innerText = "¡TE TOCA: " + randomMovie.name + "!";
+                    // Bloquear para la siguiente ronda
+                    blockedIds.push(randomMovie.id);
                 }
 
-                btn.disabled = false;
-            }, 5200);
+                // Actualizar visualmente todas las instancias de esa peli como bloqueadas
+                setTimeout(() => {
+                    document.querySelectorAll(`.poster[data-id="${randomMovie.id}"]`).forEach(p => p.classList.add('blocked'));
+                    btn.disabled = false;
+                    if(blockedIds.length === initialMovies.length) {
+                         document.getElementById('reset-link').style.display = "block";
+                    }
+                }, 1000);
+
+            }, 3200);
+        }
+
+        function resetGame() {
+            blockedIds = [];
+            document.getElementById('reset-link').style.display = "none";
+            status.innerText = "¡NUEVA PARTIDA!";
+            init();
         }
 
         init();
