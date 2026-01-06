@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruleta Netflix Final</title>
+    <title>Ruleta Películas Infinita</title>
     <style>
         :root {
-            --n-red: #e50914;
+            --red: #e50914;
             --bg: #141414;
-            --pw: 200px; /* Ancho póster */
-            --ph: 300px; /* Alto póster */
+            --w: 200px; /* Ancho póster */
+            --h: 300px; /* Alto póster */
             --gap: 15px;
         }
 
         body {
             background: var(--bg);
             color: white;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -26,77 +26,81 @@
             overflow: hidden;
         }
 
-        .container {
+        .viewport {
             position: relative;
             width: 100%;
-            height: 400px;
-            overflow: hidden;
+            height: 420px;
             display: flex;
             align-items: center;
             justify-content: center;
-            mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+            overflow: hidden;
+            mask-image: linear-gradient(to right, transparent, black 25%, black 75%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 25%, black 75%, transparent);
         }
 
         .selector {
             position: absolute;
-            width: calc(var(--pw) + 10px);
-            height: calc(var(--ph) + 10px);
-            border: 4px solid white;
-            border-radius: 8px;
+            width: calc(var(--w) + 10px);
+            height: calc(var(--h) + 10px);
+            border: 5px solid white;
+            border-radius: 10px;
             z-index: 100;
-            box-shadow: 0 0 20px rgba(255,255,255,0.4);
             pointer-events: none;
+            box-shadow: 0 0 30px rgba(255,255,255,0.3);
         }
 
         .rail {
             display: flex;
             gap: var(--gap);
             position: absolute;
-            transition: transform 5s cubic-bezier(0.15, 0, 0.15, 1); /* El freno */
             will-change: transform;
+            /* El centro del riel debe estar alineado con el centro del viewport */
+            left: 50%;
         }
 
         .poster {
-            width: var(--pw);
-            height: var(--ph);
-            border-radius: 5px;
+            width: var(--w);
+            height: var(--h);
             object-fit: cover;
+            border-radius: 6px;
             filter: brightness(0.3);
-            transition: all 0.5s ease;
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.5s;
         }
 
         .poster.winner {
             filter: brightness(1.2);
-            transform: scale(1.1);
-            border: 3px solid var(--n-red);
-            box-shadow: 0 0 30px var(--n-red);
+            transform: scale(1.15);
+            box-shadow: 0 0 40px var(--red);
+            border: 3px solid var(--red);
+            z-index: 10;
         }
 
         .btn {
-            margin-top: 30px;
-            padding: 15px 40px;
-            background: var(--n-red);
+            margin-top: 20px;
+            padding: 16px 50px;
+            background: var(--red);
             color: white;
             border: none;
             border-radius: 4px;
+            font-size: 1.2rem;
             font-weight: bold;
             cursor: pointer;
-            font-size: 1.1rem;
+            text-transform: uppercase;
         }
 
-        .btn:disabled { background: #444; }
+        .btn:disabled { background: #444; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-    <h1 id="msg">¡Preparen sus actuaciones!</h1>
+    <h1 id="status">¡A actuar!</h1>
 
-    <div class="container">
+    <div class="viewport">
         <div class="selector"></div>
         <div id="rail" class="rail"></div>
     </div>
 
-    <button id="btn" class="btn" onclick="spin()">GIRAR RULETA</button>
+    <button id="btn" class="btn" onclick="spin()">Girar Ruleta</button>
 
     <script>
         const movies = [
@@ -104,71 +108,82 @@
             { name: "Shrek", img: "2.jpg" },
             { name: "Star Wars", img: "4.jpg" },
             { name: "Stranger Things", img: "1.jpg" },
+            { name: "Avatar", img: "avatar.jpg" },
+            { name: "Batman", img: "batman.jpg" },
+            { name: "Jurassic Park", img: "jurassic.jpg" },
+            { name: "El Rey León", img: "reyleon.jpg" }
         ];
 
         const rail = document.getElementById('rail');
         const btn = document.getElementById('btn');
-        const msg = document.getElementById('msg');
+        const status = document.getElementById('status');
         
-        const cardStep = 215; // Ancho (200) + gap (15)
-        const totalSets = 30; // Muchas copias para que nunca se acabe
-        let currentRotation = 0;
+        const step = 215; // 200 ancho + 15 gap
+        const copies = 12; // Cantidad de juegos de imágenes
 
-        // Inyectar posters
+        // 1. Construir riel largo
         function init() {
-            let html = '';
-            for(let i=0; i<totalSets; i++) {
+            let content = "";
+            for(let i=0; i<copies; i++) {
                 movies.forEach(m => {
-                    html += `<img src="${m.img}" class="poster" data-title="${m.name}" onerror="this.src='https://via.placeholder.com/200x300?text=${m.name}'">`;
+                    content += `<img src="${m.img}" class="poster" data-name="${m.name}" onerror="this.src='https://via.placeholder.com/200x300?text=${m.name}'">`;
                 });
             }
-            rail.innerHTML = html;
-            
-            // Posición inicial: empezar en el medio de la tira
-            currentRotation = (totalSets / 2) * movies.length * cardStep;
-            rail.style.transform = `translateX(-${currentRotation}px)`;
+            rail.innerHTML = content;
+            resetToCenter();
+        }
+
+        // 2. Coloca la ruleta en el medio exacto sin animación
+        function resetToCenter() {
+            rail.style.transition = "none";
+            // Centramos en el inicio del bloque central de películas
+            const centerIdx = Math.floor(copies / 2) * movies.length;
+            const initialOffset = -(centerIdx * step) - (step / 2);
+            rail.style.transform = `translateX(${initialOffset}px)`;
+            return initialOffset;
         }
 
         function spin() {
             btn.disabled = true;
-            msg.innerText = "Girando...";
+            status.innerText = "Girando...";
             
-            // Limpiar ganador previo
+            // Limpiar selección anterior
             document.querySelectorAll('.poster').forEach(p => p.classList.remove('winner'));
 
-            // Elegir peli al azar (índice 0 a 7)
+            // Resetear posición al centro antes de girar (imperceptible)
+            const currentPos = resetToCenter();
+
+            // Forzar un reflow para que el navegador note el cambio de posición sin animación
+            rail.offsetHeight; 
+
+            // Elegir ganador
             const randomIdx = Math.floor(Math.random() * movies.length);
             
-            // Cuánto vamos a avanzar (mínimo 4 vueltas completas + el índice)
-            const extraSteps = (movies.length * 4) + randomIdx;
-            const distanceToMove = extraSteps * cardStep;
-            
-            // Actualizamos la posición global
-            currentRotation += distanceToMove;
+            // Queremos que se mueva 3 vueltas completas + la posición de la peli
+            const distance = (movies.length * 3 + randomIdx) * step;
+            const finalPos = currentPos - distance;
 
-            // Aplicar movimiento
-            rail.style.transition = "transform 5s cubic-bezier(0.15, 0, 0.15, 1)";
-            rail.style.transform = `translateX(-${currentRotation}px)`;
+            // Animación
+            rail.style.transition = "transform 5s cubic-bezier(0.1, 0, 0.1, 1)";
+            rail.style.transform = `translateX(${finalPos}px)`;
 
-            // Cuando termine el CSS (5 segundos)
             setTimeout(() => {
-                // Cálculo exacto del elemento que quedó en el centro
+                // El ganador está en el índice global: centerIdx + vueltas + randomIdx
+                const centerIdx = Math.floor(copies / 2) * movies.length;
+                const winnerGlobalIdx = centerIdx + (movies.length * 3) + randomIdx;
                 const allPosters = document.querySelectorAll('.poster');
-                const winningGlobalIndex = Math.round(currentRotation / cardStep);
-                const winner = allPosters[winningGlobalIndex];
+                const winner = allPosters[winnerGlobalIdx];
 
                 if(winner) {
                     winner.classList.add('winner');
-                    msg.innerText = "¡Te toca: " + winner.getAttribute('data-title') + "!";
+                    status.innerText = "¡Te toca: " + winner.dataset.name + "!";
                 }
-                
+
                 btn.disabled = false;
-            }, 5000);
+            }, 5200);
         }
 
         init();
     </script>
 </body>
-</html>       
-     
-   
+</html>
