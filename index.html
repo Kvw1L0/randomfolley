@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de Películas Estilo Netflix</title>
+    <style>
+        :root {
+            --netflix-red: #e50914;
+            --dark-bg: #141414;
+            --poster-width: 200px;
+            --poster-height: 300px;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: white;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Contenedor principal de la ruleta */
+        .roulette-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden; /* Esconde lo que sobra */
+            mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+        }
+
+        /* Línea selectora central */
+        .selector {
+            position: absolute;
+            z-index: 10;
+            width: calc(var(--poster-width) + 10px);
+            height: calc(var(--poster-height) + 10px);
+            border: 4px solid var(--netflix-red);
+            border-radius: 8px;
+            box-shadow: 0 0 20px var(--netflix-red);
+            pointer-events: none;
+        }
+
+        /* El riel que se mueve */
+        .movie-rail {
+            display: flex;
+            gap: 15px;
+            transform: translateX(0);
+            will-change: transform;
+        }
+
+        .poster {
+            width: var(--poster-width);
+            height: var(--poster-height);
+            background-color: #333;
+            border-radius: 4px;
+            object-fit: cover;
+            flex-shrink: 0;
+            transition: transform 0.3s;
+        }
+
+        /* Botón de acción */
+        .btn-spin {
+            margin-top: 40px;
+            padding: 15px 40px;
+            background-color: var(--netflix-red);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .btn-spin:hover {
+            background-color: #f40612;
+            transform: scale(1.05);
+        }
+
+        .btn-spin:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>¿Qué película te toca interpretar?</h1>
+
+    <div class="roulette-wrapper">
+        <div class="selector"></div>
+        <div id="movie-rail" class="movie-rail">
+            </div>
+    </div>
+
+    <button id="spin-button" class="btn-spin" onclick="spin()">¡GIRAR RULETA!</button>
+
+    <script>
+        // Lista de películas (puedes cambiar los nombres o poner URLs de imágenes reales)
+        const movies = [
+            { name: "Titanic", img: "https://image.tmdb.org/t/p/w500/9xj7vYuwbtu6H7YQezSj57og9Nu.jpg" },
+            { name: "El Padrino", img: "https://image.tmdb.org/t/p/w500/3bhkrjYpuiunlhNXYA6oU0Y9Lsb.jpg" },
+            { name: "Star Wars", img: "https://image.tmdb.org/t/p/w500/6FfCtAuVAWn7v9p79ch3pWjbqi5.jpg" },
+            { name: "Avengers", img: "https://image.tmdb.org/t/p/w500/RYMX2wcGCBpqDTH3mqNoFBdiS7.jpg" },
+            { name: "Avatar", img: "https://image.tmdb.org/t/p/w500/6mJm3TxSj7OVfsfS9G93NWgh9v2.jpg" },
+            { name: "Batman", img: "https://image.tmdb.org/t/p/w500/8bmY7S9ID8v9u9gh97oZ6m9oBhR.jpg" },
+            { name: "Jurassic Park", img: "https://image.tmdb.org/t/p/w500/9i3S9Xv7tUExS9Lbs9YNLMGv99x.jpg" },
+            { name: "El Rey León", img: "https://image.tmdb.org/t/p/w500/sKCr78HLicBX9oY9uBbsDW7vnM7.jpg" }
+        ];
+
+        const rail = document.getElementById('movie-rail');
+        const btn = document.getElementById('spin-button');
+        const posterWidthTotal = 215; // Ancho + gap
+
+        // 1. Llenamos el riel (repetimos la lista para el efecto infinito)
+        const totalCycles = 10; 
+        const combinedList = [];
+        for(let i=0; i < totalCycles; i++) {
+            combinedList.push(...movies);
+        }
+
+        combinedList.forEach(movie => {
+            const img = document.createElement('img');
+            img.src = movie.img;
+            img.className = 'poster';
+            img.alt = movie.name;
+            rail.appendChild(img);
+        });
+
+        function spin() {
+            btn.disabled = true;
+            
+            // Elegir una película ganadora al azar de la última sección del riel
+            const randomIndex = Math.floor(Math.random() * movies.length);
+            // Calculamos cuánto debe moverse:
+            // (vueltas completas) + (posición de la peli) - (ajuste para centrar en el selector)
+            const baseShift = (totalCycles - 2) * (movies.length * posterWidthTotal);
+            const finalShift = baseShift + (randomIndex * posterWidthTotal);
+            
+            // Aplicar la animación
+            rail.style.transition = "transform 6s cubic-bezier(0.15, 0, 0.05, 1)";
+            rail.style.transform = `translateX(-${finalShift}px)`;
+
+            // Al terminar, mostramos el resultado
+            setTimeout(() => {
+                alert("¡Te toca interpretar: " + movies[randomIndex].name + "!");
+                btn.disabled = false;
+                
+                // Opcional: Resetear posición sin que se note para poder girar de nuevo
+                // (Para simplicidad en este ejemplo, se queda ahí)
+            }, 6500);
+        }
+    </script>
+</body>
+</html>
