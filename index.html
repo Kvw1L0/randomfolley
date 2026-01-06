@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruleta de Películas Estilo Netflix</title>
+    <title>Ruleta Pro Películas</title>
     <style>
         :root {
             --netflix-red: #e50914;
             --dark-bg: #141414;
-            --poster-width: 200px;
-            --poster-height: 300px;
+            --poster-w: 200px;
+            --poster-h: 300px;
+            --gap: 15px;
         }
 
         body {
             background-color: var(--dark-bg);
             color: white;
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -25,94 +26,79 @@
             overflow: hidden;
         }
 
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-
-        .roulette-wrapper {
+        .roulette-container {
             position: relative;
             width: 100%;
-            max-width: 1000px;
-            height: 450px; /* Un poco más alto para que el escalado no se corte */
+            height: 400px;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+            mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
         }
 
         .selector {
             position: absolute;
-            z-index: 10;
-            width: calc(var(--poster-width) + 10px);
-            height: calc(var(--poster-height) + 10px);
-            border: 4px solid white; /* Cambiado a blanco para contrastar con el rojo de Netflix */
-            border-radius: 8px;
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+            width: calc(var(--poster-w) + 10px);
+            height: calc(var(--poster-h) + 10px);
+            border: 5px solid white;
+            border-radius: 10px;
+            z-index: 100;
             pointer-events: none;
+            box-shadow: 0 0 20px rgba(255,255,255,0.5);
         }
 
         .movie-rail {
             display: flex;
-            gap: 15px;
-            transform: translateX(0);
+            gap: var(--gap);
+            padding-left: 50%; /* Inicio centrado */
             will-change: transform;
-            padding: 0 50px;
         }
 
         .poster {
-            width: var(--poster-width);
-            height: var(--poster-height);
-            background-color: #333;
-            border-radius: 4px;
+            width: var(--poster-w);
+            height: var(--poster-h);
+            border-radius: 8px;
             object-fit: cover;
             flex-shrink: 0;
-            transition: all 0.5s ease; /* Transición suave para el destaque */
-            filter: brightness(0.6); /* Las pelis normales se ven más oscuras */
+            filter: brightness(0.4);
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.5s;
         }
 
-        /* --- CLASE DE GANADORA --- */
+        /* Clase para destacar al ganador */
         .poster.winner {
-            transform: scale(1.2); /* Se agranda */
-            filter: brightness(1.2); /* Se ilumina */
-            border: 4px solid var(--netflix-red);
-            box-shadow: 0 0 50px var(--netflix-red);
-            z-index: 20;
-            position: relative;
+            filter: brightness(1.1);
+            transform: scale(1.2);
+            box-shadow: 0 0 30px var(--netflix-red);
+            border: 2px solid var(--netflix-red);
         }
 
         .btn-spin {
-            margin-top: 20px;
-            padding: 15px 40px;
+            margin-top: 30px;
+            padding: 18px 50px;
             background-color: var(--netflix-red);
             color: white;
             border: none;
-            border-radius: 4px;
-            font-size: 1.2rem;
+            border-radius: 5px;
+            font-size: 1.3rem;
             font-weight: bold;
             cursor: pointer;
-            text-transform: uppercase;
-            transition: transform 0.2s;
-            z-index: 100;
+            transition: 0.3s;
         }
 
-        .btn-spin:hover { transform: scale(1.05); }
-        .btn-spin:disabled { background-color: #555; }
-
+        .btn-spin:disabled { background-color: #555; opacity: 0.7; }
     </style>
 </head>
 <body>
 
     <h1>¿Qué película te toca?</h1>
 
-    <div class="roulette-wrapper">
+    <div class="roulette-container">
         <div class="selector"></div>
         <div id="movie-rail" class="movie-rail"></div>
     </div>
 
-    <button id="spin-button" class="btn-spin" onclick="spin()">¡GIRAR!</button>
+    <button id="spin-button" class="btn-spin" onclick="spin()">GIRAR RULETA</button>
 
     <script>
         const movies = [
@@ -128,51 +114,61 @@
 
         const rail = document.getElementById('movie-rail');
         const btn = document.getElementById('spin-button');
-        const posterWidthTotal = 215; 
+        const posterFullWidth = 200 + 15; // Ancho + gap
+        const totalGroups = 20; // Grupos de copias para efecto infinito
 
-        const totalCycles = 15; // Más ciclos para que gire más tiempo
-        let allImgElements = [];
-
-        // Generamos el riel
-        for(let i=0; i < totalCycles; i++) {
+        // 1. Crear el carrusel infinito
+        let allPosters = [];
+        for(let i=0; i < totalGroups; i++) {
             movies.forEach(movie => {
                 const img = document.createElement('img');
                 img.src = movie.img;
                 img.className = 'poster';
                 img.onerror = () => { img.src = "https://via.placeholder.com/200x300?text=" + movie.name };
                 rail.appendChild(img);
-                allImgElements.push(img);
+                allPosters.push(img);
             });
         }
 
+        // Posición inicial: centrada en el medio del carrusel
+        let currentPos = (totalGroups / 2) * (movies.length * posterFullWidth);
+        rail.style.transform = `translateX(-${currentPos + (posterFullWidth/2)}px)`;
+
         function spin() {
             btn.disabled = true;
-            
-            // 1. Limpiar ganador anterior
-            allImgElements.forEach(img => img.classList.remove('winner'));
 
-            // 2. Elegir ganadora al azar
+            // Quitar ganador anterior
+            allPosters.forEach(p => p.classList.remove('winner'));
+
+            // Elegir ganador al azar
             const randomIndex = Math.floor(Math.random() * movies.length);
             
-            // Calculamos la posición en el penúltimo ciclo para asegurar que haya imágenes a los lados
-            const winningGlobalIndex = ((totalCycles - 2) * movies.length) + randomIndex;
-            const finalShift = winningGlobalIndex * posterWidthTotal;
+            // Calculamos desplazamiento: movemos muchos posters a la derecha
+            const spins = 5; // Cuántas vueltas completas dar
+            const extraMove = (spins * movies.length * posterFullWidth) + (randomIndex * posterFullWidth);
             
-            // 3. Animación
-            rail.style.transition = "transform 6s cubic-bezier(0.15, 0, 0.05, 1)";
-            rail.style.transform = `translateX(-${finalShift}px)`;
+            const targetPos = currentPos + extraMove;
 
-            // 4. Destaque final
+            // Animación fluida
+            rail.style.transition = "transform 5s cubic-bezier(0.15, 0, 0.15, 1)";
+            rail.style.transform = `translateX(-${targetPos + (posterFullWidth/2)}px)`;
+
             setTimeout(() => {
-                const winnerElement = allImgElements[winningGlobalIndex];
-                winnerElement.classList.add('winner');
+                // Identificar el elemento visualmente centrado
+                // El índice ganador es la posición base inicial + lo que movimos al azar
+                const winningIndex = Math.round(targetPos / posterFullWidth);
+                const winnerElement = allPosters[winningIndex];
                 
-                // Pequeña pausa para apreciar el efecto antes del alert
+                if(winnerElement) winnerElement.classList.add('winner');
+
+                // Actualizar posición actual para el siguiente giro
+                currentPos = targetPos;
+
                 setTimeout(() => {
-                    alert("¡Te toca interpretar: " + movies[randomIndex].name + "!");
+                    alert("¡Película: " + movies[randomIndex].name + "!");
                     btn.disabled = false;
                 }, 800);
-            }, 6100);
+            }, 5100);
         }
     </script>
 </body>
