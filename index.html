@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruleta Pro Películas</title>
+    <title>Ruleta de Películas Pro</title>
     <style>
         :root {
             --netflix-red: #e50914;
             --dark-bg: #141414;
-            --poster-w: 200px;
-            --poster-h: 300px;
+            --p-width: 200px; /* Ancho póster */
+            --p-height: 300px; /* Alto póster */
             --gap: 15px;
         }
 
         body {
             background-color: var(--dark-bg);
             color: white;
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -26,79 +26,87 @@
             overflow: hidden;
         }
 
-        .roulette-container {
+        /* El contenedor que recorta la vista */
+        .roulette-viewport {
             position: relative;
             width: 100%;
-            height: 400px;
+            height: 450px;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+            mask-image: linear-gradient(to right, transparent, black 25%, black 75%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 25%, black 75%, transparent);
         }
 
-        .selector {
+        /* Marco blanco central */
+        .selector-frame {
             position: absolute;
-            width: calc(var(--poster-w) + 10px);
-            height: calc(var(--poster-h) + 10px);
+            width: calc(var(--p-width) + 10px);
+            height: calc(var(--p-height) + 10px);
             border: 5px solid white;
             border-radius: 10px;
             z-index: 100;
             pointer-events: none;
-            box-shadow: 0 0 20px rgba(255,255,255,0.5);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.4);
         }
 
+        /* El riel que contiene las fotos */
         .movie-rail {
             display: flex;
             gap: var(--gap);
-            padding-left: 50%; /* Inicio centrado */
+            position: absolute;
+            left: 50%; /* Centra el inicio del riel en el medio de la pantalla */
             will-change: transform;
+            transform: translateX(0);
         }
 
         .poster {
-            width: var(--poster-w);
-            height: var(--poster-h);
-            border-radius: 8px;
+            width: var(--p-width);
+            height: var(--p-height);
+            border-radius: 5px;
             object-fit: cover;
             flex-shrink: 0;
-            filter: brightness(0.4);
-            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.5s;
+            filter: brightness(0.3);
+            transition: transform 0.5s ease, filter 0.5s ease, box-shadow 0.5s ease;
         }
 
-        /* Clase para destacar al ganador */
+        /* Estado ganador */
         .poster.winner {
-            filter: brightness(1.1);
-            transform: scale(1.2);
-            box-shadow: 0 0 30px var(--netflix-red);
-            border: 2px solid var(--netflix-red);
+            filter: brightness(1.2);
+            transform: scale(1.15);
+            box-shadow: 0 0 40px var(--netflix-red);
+            border: 3px solid var(--netflix-red);
+            z-index: 10;
         }
 
         .btn-spin {
-            margin-top: 30px;
-            padding: 18px 50px;
+            margin-top: 20px;
+            padding: 15px 45px;
             background-color: var(--netflix-red);
             color: white;
             border: none;
-            border-radius: 5px;
-            font-size: 1.3rem;
+            border-radius: 4px;
+            font-size: 1.2rem;
             font-weight: bold;
             cursor: pointer;
             transition: 0.3s;
         }
 
-        .btn-spin:disabled { background-color: #555; opacity: 0.7; }
+        .btn-spin:hover { transform: scale(1.05); background-color: #ff1f29; }
+        .btn-spin:disabled { background-color: #444; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-    <h1>¿Qué película te toca?</h1>
+    <h1 id="status">¿Quién interpreta ahora?</h1>
 
-    <div class="roulette-container">
-        <div class="selector"></div>
+    <div class="roulette-viewport">
+        <div class="selector-frame"></div>
         <div id="movie-rail" class="movie-rail"></div>
     </div>
 
-    <button id="spin-button" class="btn-spin" onclick="spin()">GIRAR RULETA</button>
+    <button id="spin-button" class="btn-spin">¡GIRAR RULETA!</button>
 
     <script>
         const movies = [
@@ -114,62 +122,78 @@
 
         const rail = document.getElementById('movie-rail');
         const btn = document.getElementById('spin-button');
-        const posterFullWidth = 200 + 15; // Ancho + gap
-        const totalGroups = 20; // Grupos de copias para efecto infinito
+        const statusText = document.getElementById('status');
+        
+        const cardWidth = 200 + 15; // Ancho + Gap
+        const sets = 10; // Copias de la lista para simular infinito
 
-        // 1. Crear el carrusel infinito
-        let allPosters = [];
-        for(let i=0; i < totalGroups; i++) {
-            movies.forEach(movie => {
-                const img = document.createElement('img');
-                img.src = movie.img;
-                img.className = 'poster';
-                img.onerror = () => { img.src = "https://via.placeholder.com/200x300?text=" + movie.name };
-                rail.appendChild(img);
-                allPosters.push(img);
-            });
+        // Crear el carrusel
+        function buildRail() {
+            rail.innerHTML = '';
+            for (let i = 0; i < sets; i++) {
+                movies.forEach((movie, idx) => {
+                    const img = document.createElement('img');
+                    img.src = movie.img;
+                    img.className = 'poster';
+                    img.dataset.name = movie.name;
+                    img.onerror = () => { img.src = `https://via.placeholder.com/200x300?text=${movie.name}`; };
+                    rail.appendChild(img);
+                });
+            }
         }
 
-        // Posición inicial: centrada en el medio del carrusel
-        let currentPos = (totalGroups / 2) * (movies.length * posterFullWidth);
-        rail.style.transform = `translateX(-${currentPos + (posterFullWidth/2)}px)`;
+        buildRail();
+
+        // Posicionamiento inicial: que el primer poster del set central esté en el medio
+        const centerOffset = (sets / 2) * movies.length * cardWidth;
+        let currentX = -centerOffset + (cardWidth / 2) - 7.5; // Ajuste fino centrado
+        rail.style.transform = `translateX(${currentX}px)`;
 
         function spin() {
             btn.disabled = true;
+            statusText.innerText = "Girando...";
+            
+            // Limpiar ganadores previos
+            document.querySelectorAll('.poster').forEach(p => p.classList.remove('winner'));
 
-            // Quitar ganador anterior
-            allPosters.forEach(p => p.classList.remove('winner'));
-
-            // Elegir ganador al azar
+            // Elegir peli al azar
             const randomIndex = Math.floor(Math.random() * movies.length);
             
-            // Calculamos desplazamiento: movemos muchos posters a la derecha
-            const spins = 5; // Cuántas vueltas completas dar
-            const extraMove = (spins * movies.length * posterFullWidth) + (randomIndex * posterFullWidth);
+            // Calculamos cuánto movernos desde la posición actual
+            // Queremos que aterrice en el randomIndex del "set" central
+            const spins = 5; // Vueltas extras
+            const moveBy = (spins * movies.length * cardWidth) + (randomIndex * cardWidth);
             
-            const targetPos = currentPos + extraMove;
+            const targetX = currentX - moveBy;
 
-            // Animación fluida
-            rail.style.transition = "transform 5s cubic-bezier(0.15, 0, 0.15, 1)";
-            rail.style.transform = `translateX(-${targetPos + (posterFullWidth/2)}px)`;
+            rail.style.transition = "transform 6s cubic-bezier(0.1, 0, 0.1, 1)";
+            rail.style.transform = `translateX(${targetX}px)`;
 
             setTimeout(() => {
-                // Identificar el elemento visualmente centrado
-                // El índice ganador es la posición base inicial + lo que movimos al azar
-                const winningIndex = Math.round(targetPos / posterFullWidth);
-                const winnerElement = allPosters[winningIndex];
-                
-                if(winnerElement) winnerElement.classList.add('winner');
+                // Identificar la imagen que quedó en el centro exacto
+                const allPosters = document.querySelectorAll('.poster');
+                // El ganador es el que está en la posición calculada
+                // (Posición inicial en posters + vueltas dadas + index aleatorio)
+                const winnerGlobalIndex = ( (sets / 2) * movies.length ) + (Math.abs(targetX - currentX) / cardWidth);
+                const winnerElement = allPosters[Math.round(winnerGlobalIndex)];
 
-                // Actualizar posición actual para el siguiente giro
-                currentPos = targetPos;
+                if (winnerElement) {
+                    winnerElement.classList.add('winner');
+                    statusText.innerText = "¡Te toca: " + winnerElement.dataset.name + "!";
+                }
 
+                // RESET SILENCIOSO: Volvemos al set central sin que el usuario lo note
+                // para que la ruleta sea infinita y nunca se salga del riel
                 setTimeout(() => {
-                    alert("¡Película: " + movies[randomIndex].name + "!");
                     btn.disabled = false;
-                }, 800);
-            }, 5100);
+                    // Aquí podrías resetear la posición si quisieras giros infinitos sin límite, 
+                    // pero con 10 sets (80 películas) tienes para muchos giros antes de acabarlas.
+                }, 500);
+
+            }, 6100);
         }
+
+        btn.addEventListener('click', spin);
     </script>
 </body>
 </html>
