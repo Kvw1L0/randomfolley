@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruleta de Películas Pro</title>
+    <title>Ruleta Netflix Final</title>
     <style>
         :root {
-            --netflix-red: #e50914;
-            --dark-bg: #141414;
-            --p-width: 200px; /* Ancho póster */
-            --p-height: 300px; /* Alto póster */
+            --n-red: #e50914;
+            --bg: #141414;
+            --pw: 200px; /* Ancho póster */
+            --ph: 300px; /* Alto póster */
             --gap: 15px;
         }
 
         body {
-            background-color: var(--dark-bg);
+            background: var(--bg);
             color: white;
             font-family: 'Arial', sans-serif;
             display: flex;
@@ -26,87 +26,77 @@
             overflow: hidden;
         }
 
-        /* El contenedor que recorta la vista */
-        .roulette-viewport {
+        .container {
             position: relative;
             width: 100%;
-            height: 450px;
+            height: 400px;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
-            mask-image: linear-gradient(to right, transparent, black 25%, black 75%, transparent);
-            -webkit-mask-image: linear-gradient(to right, transparent, black 25%, black 75%, transparent);
+            mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
         }
 
-        /* Marco blanco central */
-        .selector-frame {
+        .selector {
             position: absolute;
-            width: calc(var(--p-width) + 10px);
-            height: calc(var(--p-height) + 10px);
-            border: 5px solid white;
-            border-radius: 10px;
+            width: calc(var(--pw) + 10px);
+            height: calc(var(--ph) + 10px);
+            border: 4px solid white;
+            border-radius: 8px;
             z-index: 100;
+            box-shadow: 0 0 20px rgba(255,255,255,0.4);
             pointer-events: none;
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.4);
         }
 
-        /* El riel que contiene las fotos */
-        .movie-rail {
+        .rail {
             display: flex;
             gap: var(--gap);
             position: absolute;
-            left: 50%; /* Centra el inicio del riel en el medio de la pantalla */
+            transition: transform 5s cubic-bezier(0.15, 0, 0.15, 1); /* El freno */
             will-change: transform;
-            transform: translateX(0);
         }
 
         .poster {
-            width: var(--p-width);
-            height: var(--p-height);
+            width: var(--pw);
+            height: var(--ph);
             border-radius: 5px;
             object-fit: cover;
-            flex-shrink: 0;
             filter: brightness(0.3);
-            transition: transform 0.5s ease, filter 0.5s ease, box-shadow 0.5s ease;
+            transition: all 0.5s ease;
         }
 
-        /* Estado ganador */
         .poster.winner {
             filter: brightness(1.2);
-            transform: scale(1.15);
-            box-shadow: 0 0 40px var(--netflix-red);
-            border: 3px solid var(--netflix-red);
-            z-index: 10;
+            transform: scale(1.1);
+            border: 3px solid var(--n-red);
+            box-shadow: 0 0 30px var(--n-red);
         }
 
-        .btn-spin {
-            margin-top: 20px;
-            padding: 15px 45px;
-            background-color: var(--netflix-red);
+        .btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            background: var(--n-red);
             color: white;
             border: none;
             border-radius: 4px;
-            font-size: 1.2rem;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.3s;
+            font-size: 1.1rem;
         }
 
-        .btn-spin:hover { transform: scale(1.05); background-color: #ff1f29; }
-        .btn-spin:disabled { background-color: #444; cursor: not-allowed; }
+        .btn:disabled { background: #444; }
     </style>
 </head>
 <body>
 
-    <h1 id="status">¿Quién interpreta ahora?</h1>
+    <h1 id="msg">¡Preparen sus actuaciones!</h1>
 
-    <div class="roulette-viewport">
-        <div class="selector-frame"></div>
-        <div id="movie-rail" class="movie-rail"></div>
+    <div class="container">
+        <div class="selector"></div>
+        <div id="rail" class="rail"></div>
     </div>
 
-    <button id="spin-button" class="btn-spin">¡GIRAR RULETA!</button>
+    <button id="btn" class="btn" onclick="spin()">GIRAR RULETA</button>
 
     <script>
         const movies = [
@@ -114,84 +104,71 @@
             { name: "Shrek", img: "2.jpg" },
             { name: "Star Wars", img: "4.jpg" },
             { name: "Stranger Things", img: "1.jpg" },
-
-           
         ];
 
-        const rail = document.getElementById('movie-rail');
-        const btn = document.getElementById('spin-button');
-        const statusText = document.getElementById('status');
+        const rail = document.getElementById('rail');
+        const btn = document.getElementById('btn');
+        const msg = document.getElementById('msg');
         
-        const cardWidth = 200 + 15; // Ancho + Gap
-        const sets = 10; // Copias de la lista para simular infinito
+        const cardStep = 215; // Ancho (200) + gap (15)
+        const totalSets = 30; // Muchas copias para que nunca se acabe
+        let currentRotation = 0;
 
-        // Crear el carrusel
-        function buildRail() {
-            rail.innerHTML = '';
-            for (let i = 0; i < sets; i++) {
-                movies.forEach((movie, idx) => {
-                    const img = document.createElement('img');
-                    img.src = movie.img;
-                    img.className = 'poster';
-                    img.dataset.name = movie.name;
-                    img.onerror = () => { img.src = `https://via.placeholder.com/200x300?text=${movie.name}`; };
-                    rail.appendChild(img);
+        // Inyectar posters
+        function init() {
+            let html = '';
+            for(let i=0; i<totalSets; i++) {
+                movies.forEach(m => {
+                    html += `<img src="${m.img}" class="poster" data-title="${m.name}" onerror="this.src='https://via.placeholder.com/200x300?text=${m.name}'">`;
                 });
             }
+            rail.innerHTML = html;
+            
+            // Posición inicial: empezar en el medio de la tira
+            currentRotation = (totalSets / 2) * movies.length * cardStep;
+            rail.style.transform = `translateX(-${currentRotation}px)`;
         }
-
-        buildRail();
-
-        // Posicionamiento inicial: que el primer poster del set central esté en el medio
-        const centerOffset = (sets / 2) * movies.length * cardWidth;
-        let currentX = -centerOffset + (cardWidth / 2) - 7.5; // Ajuste fino centrado
-        rail.style.transform = `translateX(${currentX}px)`;
 
         function spin() {
             btn.disabled = true;
-            statusText.innerText = "Girando...";
+            msg.innerText = "Girando...";
             
-            // Limpiar ganadores previos
+            // Limpiar ganador previo
             document.querySelectorAll('.poster').forEach(p => p.classList.remove('winner'));
 
-            // Elegir peli al azar
-            const randomIndex = Math.floor(Math.random() * movies.length);
+            // Elegir peli al azar (índice 0 a 7)
+            const randomIdx = Math.floor(Math.random() * movies.length);
             
-            // Calculamos cuánto movernos desde la posición actual
-            // Queremos que aterrice en el randomIndex del "set" central
-            const spins = 5; // Vueltas extras
-            const moveBy = (spins * movies.length * cardWidth) + (randomIndex * cardWidth);
+            // Cuánto vamos a avanzar (mínimo 4 vueltas completas + el índice)
+            const extraSteps = (movies.length * 4) + randomIdx;
+            const distanceToMove = extraSteps * cardStep;
             
-            const targetX = currentX - moveBy;
+            // Actualizamos la posición global
+            currentRotation += distanceToMove;
 
-            rail.style.transition = "transform 6s cubic-bezier(0.1, 0, 0.1, 1)";
-            rail.style.transform = `translateX(${targetX}px)`;
+            // Aplicar movimiento
+            rail.style.transition = "transform 5s cubic-bezier(0.15, 0, 0.15, 1)";
+            rail.style.transform = `translateX(-${currentRotation}px)`;
 
+            // Cuando termine el CSS (5 segundos)
             setTimeout(() => {
-                // Identificar la imagen que quedó en el centro exacto
+                // Cálculo exacto del elemento que quedó en el centro
                 const allPosters = document.querySelectorAll('.poster');
-                // El ganador es el que está en la posición calculada
-                // (Posición inicial en posters + vueltas dadas + index aleatorio)
-                const winnerGlobalIndex = ( (sets / 2) * movies.length ) + (Math.abs(targetX - currentX) / cardWidth);
-                const winnerElement = allPosters[Math.round(winnerGlobalIndex)];
+                const winningGlobalIndex = Math.round(currentRotation / cardStep);
+                const winner = allPosters[winningGlobalIndex];
 
-                if (winnerElement) {
-                    winnerElement.classList.add('winner');
-                    statusText.innerText = "¡Te toca: " + winnerElement.dataset.name + "!";
+                if(winner) {
+                    winner.classList.add('winner');
+                    msg.innerText = "¡Te toca: " + winner.getAttribute('data-title') + "!";
                 }
-
-                // RESET SILENCIOSO: Volvemos al set central sin que el usuario lo note
-                // para que la ruleta sea infinita y nunca se salga del riel
-                setTimeout(() => {
-                    btn.disabled = false;
-                    // Aquí podrías resetear la posición si quisieras giros infinitos sin límite, 
-                    // pero con 10 sets (80 películas) tienes para muchos giros antes de acabarlas.
-                }, 500);
-
-            }, 6100);
+                
+                btn.disabled = false;
+            }, 5000);
         }
 
-        btn.addEventListener('click', spin);
+        init();
     </script>
 </body>
-</html>
+</html>       
+     
+   
